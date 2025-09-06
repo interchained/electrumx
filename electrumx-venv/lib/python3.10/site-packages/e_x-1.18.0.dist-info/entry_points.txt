@@ -1,0 +1,4 @@
+[console_scripts]
+electrumx_compact_history = electrumx.cli.electrumx_compact_history:main
+electrumx_rpc = electrumx.cli.electrumx_rpc:main
+electrumx_server = electrumx.cli.electrumx_server:main
