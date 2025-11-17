@@ -17,15 +17,15 @@ from typing import TYPE_CHECKING, Type, Optional
 
 import electrumx.lib.util as util
 from electrumx.lib.hash import HASHX_LEN, hash_to_hex_str
-from electrumx.lib.util import (pack_be_uint16, pack_le_uint64,
-                                unpack_be_uint16_from, unpack_le_uint64)
+from electrumx.lib.util import (pack_be_uint32, pack_le_uint64,
+                                unpack_be_uint32_from, unpack_le_uint64)
 
 if TYPE_CHECKING:
     from electrumx.server.storage import Storage
 
 
 TXNUM_LEN = 5
-FLUSHID_LEN = 2
+FLUSHID_LEN = 4
 
 
 class History:
@@ -110,7 +110,7 @@ class History:
 
         keys = []
         for key, _hist in self.db.iterator(prefix=b''):
-            flush_id, = unpack_be_uint16_from(key[-FLUSHID_LEN:])
+            flush_id, = unpack_be_uint32_from(key[-FLUSHID_LEN:])
             if flush_id > utxo_flush_count:
                 keys.append(key)
 
@@ -157,7 +157,7 @@ class History:
     def flush(self):
         start_time = time.monotonic()
         self.flush_count += 1
-        flush_id = pack_be_uint16(self.flush_count)
+        flush_id = pack_be_uint32(self.flush_count)
         unflushed = self.unflushed
 
         with self.db.write_batch() as batch:
@@ -286,7 +286,7 @@ class History:
         write_size = 0
         keys_to_delete.update(hist_map)
         for n, chunk in enumerate(util.chunks(full_hist, max_row_size)):
-            key = hashX + pack_be_uint16(n)
+            key = hashX + pack_be_uint32(n)
             if hist_map.get(key) == chunk:
                 keys_to_delete.remove(key)
             else:
@@ -338,7 +338,7 @@ class History:
         # Loop over 2-byte prefixes
         cursor = self.comp_cursor
         while write_size < limit and cursor < 65536:
-            prefix = pack_be_uint16(cursor)
+            prefix = pack_be_uint32(cursor)
             write_size += self._compact_prefix(prefix, write_items,
                                                keys_to_delete)
             cursor += 1
@@ -370,8 +370,8 @@ class History:
 
         def upgrade_cursor(cursor):
             count = 0
-            prefix = pack_be_uint16(cursor)
-            key_len = HASHX_LEN + 2
+            prefix = pack_be_uint32(cursor)
+            key_len = HASHX_LEN + FLUSHID_LEN
             chunks = util.chunks
             with self.db.write_batch() as batch:
                 batch_put = batch.put
