@@ -1,3 +1,4 @@
+.env
 electrumx-venv/
 **/__pycache__/
 /.cache/
