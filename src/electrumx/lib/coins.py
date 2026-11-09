@@ -309,6 +309,26 @@ class Bitcoin(BitcoinMixin, Coin):
     BLACKLIST_URL = 'https://electrum.org/blacklist.json'
     PEERS = []
 
+    # Interchained tri-PoW (fork height 913982): an Ethash-tagged header
+    # serializes 40 extra bytes (nNonce64 + mixHash) after the standard
+    # 80-byte header; every other header stays 80 bytes.  Header length
+    # therefore depends on the block's own version tag, not on height
+    # alone, so headers are stored in the dynamic (recorded-offset)
+    # layout.  An existing database created under the static layout
+    # needs the one-time offsets migration in
+    # contrib/migrate_headers_offsets.py before it can be opened.
+    STATIC_BLOCK_HEADERS = False
+    TRIPOW_FORK_HEIGHT = 913982
+    ETHASH_HEADER_SIZE = 120
+
+    @classmethod
+    def block_header(cls, block, height):
+        if height >= cls.TRIPOW_FORK_HEIGHT and len(block) >= 4:
+            version = int.from_bytes(block[:4], 'little')
+            if (version >> 13) & 0b11 == 2:    # PoW tag: Ethash
+                return block[:cls.ETHASH_HEADER_SIZE]
+        return block[:cls.BASIC_HEADER_SIZE]
+
     @classmethod
     def warn_old_client_on_tx_broadcast(cls, client_ver):
         if client_ver < (3, 3, 3):
